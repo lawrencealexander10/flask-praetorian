@@ -109,7 +109,7 @@ class that should be used to check for authorization for decorated routes. The
 class itself may be implemented in any way that you see fit. It must, however,
 satisfy the following requirements:
 
-* Provide a ``lookup`` class method that:
+* Provide a ``find`` class method that:
 
   * should take a single argument of the name of the user
 

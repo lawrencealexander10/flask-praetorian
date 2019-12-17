@@ -265,14 +265,14 @@ class Praetorian:
 
         Requirements:
 
-        - ``lookup`` method. Accepts a string parameter, returns instance
+        - ``find`` method. Accepts a string parameter, returns instance
         - ``identify`` method. Accepts an identity parameter, returns instance
         """
         PraetorianError.require_condition(
-            getattr(user_class, 'lookup', None) is not None,
+            getattr(user_class, 'find', None) is not None,
             textwrap.dedent("""
-                The user_class must have a lookup class method:
-                user_class.lookup(<str>) -> <user instance>
+                The user_class must have a find class method:
+                user_class.find(<str>) -> <user instance>
             """),
         )
         PraetorianError.require_condition(
@@ -294,7 +294,7 @@ class Praetorian:
             self.user_class is not None,
             "Praetorian must be initialized before this method is available",
         )
-        user = self.user_class.lookup(username)
+        user = self.user_class.find(username)
         MissingUserError.require_condition(
             user is not None,
             'Could not find the requested user',
@@ -784,7 +784,7 @@ class Praetorian:
 
         sender = reset_sender or self.reset_sender
 
-        user = self.user_class.lookup(email)
+        user = self.user_class.find(email)
         MissingUserError.require_condition(
             user is not None,
             'Could not find the requested user',
