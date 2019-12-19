@@ -882,7 +882,7 @@ class Praetorian:
             )
 
             flask.current_app.logger.debug("Sending email to {}".format(email))
-            async with app.app_context():
+            async with flask.current_app.app_context():
                 notification['result'] = await run_sync(partial(flask.current_app.extensions['mail'].send,
                     msg
                 ))
