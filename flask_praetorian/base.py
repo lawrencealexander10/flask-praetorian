@@ -8,6 +8,7 @@ import textwrap
 import uuid
 import warnings
 from functools import partial
+import aiofiles
 
 from flask_mail import Message
 
@@ -721,6 +722,10 @@ class Praetorian:
         if confirmation_uri is None:
             confirmation_uri = self.confirmation_uri
 
+        if template is None:
+            async with aiofiles.open(self.confirmation_template) as fh:
+                template = await fh.read()
+
         sender = confirmation_sender or self.confirmation_sender
 
         flask.current_app.logger.debug(
@@ -728,7 +733,7 @@ class Praetorian:
                 override_access_lifespan
             )
         )
-        custom_token = self.encode_jwt_token(
+        custom_token = await self.encode_jwt_token(
             user,
             override_access_lifespan=override_access_lifespan,
             bypass_user_check=True, is_registration_token=True,
@@ -784,6 +789,10 @@ class Praetorian:
         if reset_uri is None:
             reset_uri = self.reset_uri
 
+        if template is None:
+            async with aiofiles.open(self.reset_template) as fh:
+                template = await fh.read()
+
         sender = reset_sender or self.reset_sender
 
         user = await self.user_class.lookup_by(email)
@@ -797,7 +806,7 @@ class Praetorian:
                 override_access_lifespan
             )
         )
-        custom_token = self.encode_jwt_token(
+        custom_token = await self.encode_jwt_token(
             user,
             override_access_lifespan=override_access_lifespan,
             bypass_user_check=False, is_reset_token=True,
@@ -862,9 +871,10 @@ class Praetorian:
             "A custom_token is required to send notification email",
         )
 
-        if template is None:
-            with open(self.confirmation_template) as fh:
-                template = fh.read()
+        PraetorianError.require_condition(
+            template,
+            "A template is required to send notification email",
+        )
 
         with PraetorianError.handle_errors('fail sending email'):
             flask.current_app.logger.debug(
