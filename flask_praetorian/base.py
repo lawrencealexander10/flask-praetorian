@@ -7,15 +7,13 @@ import re
 import textwrap
 import uuid
 import warnings
-import asyncio
-from contextvars import copy_context
 from functools import partial
 
 from flask_mail import Message
 
 from passlib.context import CryptContext
 
-from flask_praetorian.utilities import deprecated, duration_from_string
+from flask_praetorian.utilities import deprecated, duration_from_string, run_sync
 
 from flask_praetorian.exceptions import (
     AuthenticationError,
@@ -811,11 +809,6 @@ class Praetorian:
             sender=sender
         )
 
-    async def run_sync(func):
-        loop = asyncio.get_running_loop()
-        return await loop.run_in_executor(
-            None, func,
-        )
 
     async def send_token_email(
         self, email, user=None, template=None,

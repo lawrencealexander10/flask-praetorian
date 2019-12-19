@@ -2,12 +2,20 @@ import functools
 import inspect
 import re
 import warnings
+import asyncio
 
 import flask
 import pendulum
 
 from flask_praetorian.constants import RESERVED_CLAIMS
 from flask_praetorian.exceptions import (PraetorianError, ConfigurationError)
+
+
+async def run_sync(func):
+    loop = asyncio.get_running_loop()
+    return await loop.run_in_executor(
+        None, func,
+    )
 
 
 def duration_from_string(text):
