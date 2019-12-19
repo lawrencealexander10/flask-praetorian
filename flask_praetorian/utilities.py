@@ -110,14 +110,14 @@ def current_user_id():
     return user_id
 
 
-def current_user():
+async def current_user():
     """
     This method returns a user instance for jwt token data attached to the
     current flask app's context
     """
     user_id = current_user_id()
     guard = current_guard()
-    user = guard.user_class.identify(user_id)
+    user = await guard.user_class.identify(user_id)
     PraetorianError.require_condition(
         user is not None,
         "Could not identify the current user from the current id",

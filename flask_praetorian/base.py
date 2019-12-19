@@ -7,6 +7,9 @@ import re
 import textwrap
 import uuid
 import warnings
+import asyncio
+from contextvars import copy_context
+from functools import partial
 
 from flask_mail import Message
 
@@ -272,7 +275,7 @@ class Praetorian:
             getattr(user_class, 'find', None) is not None,
             textwrap.dedent("""
                 The user_class must have a find class method:
-                user_class.find(<str>) -> <user instance>
+                user_class.lookup_by(<str>) -> <user instance>
             """),
         )
         PraetorianError.require_condition(
@@ -285,7 +288,7 @@ class Praetorian:
         # TODO: Figure out how to check for an identity property
         return user_class
 
-    def authenticate(self, username, password):
+    async def authenticate(self, username, password):
         """
         Verifies that a password matches the stored password for that username.
         If verification passes, the matching user instance is returned
@@ -294,7 +297,7 @@ class Praetorian:
             self.user_class is not None,
             "Praetorian must be initialized before this method is available",
         )
-        user = self.user_class.find(username)
+        user = await self.user_class.lookup_by(username)
         MissingUserError.require_condition(
             user is not None,
             'Could not find the requested user',
@@ -376,7 +379,7 @@ class Praetorian:
             "The user is not valid or has had access revoked",
         )
 
-    def encode_jwt_token(
+    async def encode_jwt_token(
             self, user,
             override_access_lifespan=None, override_refresh_lifespan=None,
             bypass_user_check=False, is_registration_token=False,
@@ -449,7 +452,7 @@ class Praetorian:
         payload_parts.update(custom_claims)
 
         if self.encode_jwt_token_hook:
-            self.encode_jwt_token_hook(**payload_parts)
+            await self.encode_jwt_token_hook(**payload_parts)
         return jwt.encode(
             payload_parts, self.encode_key, self.encode_algorithm,
         ).decode('utf-8')
@@ -471,7 +474,7 @@ class Praetorian:
             **custom_claims
         )
 
-    def refresh_jwt_token(self, token, override_access_lifespan=None):
+    async def refresh_jwt_token(self, token, override_access_lifespan=None):
         """
         Creates a new token for a user if and only if the old token's access
         permission is expired but its refresh permission is not yet expired.
@@ -490,7 +493,7 @@ class Praetorian:
         moment = pendulum.now('UTC')
         data = self.extract_jwt_token(token, access_type=AccessType.refresh)
 
-        user = self.user_class.identify(data['id'])
+        user = await self.user_class.identify(data['id'])
         self._check_user(user)
 
         if override_access_lifespan is None:
@@ -517,7 +520,7 @@ class Praetorian:
         payload_parts.update(custom_claims)
 
         if self.refresh_jwt_token_hook:
-            self.refresh_jwt_token_hook(**payload_parts)
+            await self.refresh_jwt_token_hook(**payload_parts)
         return jwt.encode(
             payload_parts, self.encode_key, self.encode_algorithm,
         ).decode('utf-8')
@@ -638,11 +641,12 @@ class Praetorian:
         token = match.group(1)
         return token
 
-    def read_token_from_header(self):
+    async def read_token_from_header(self):
         """
         Unpacks a jwt token from the current flask request
         """
-        return self._unpack_header(flask.request.headers)
+        headers = await flask.request.headers
+        return self._unpack_header(headers)
 
     def pack_header_for_user(
             self, user,
@@ -675,7 +679,7 @@ class Praetorian:
         )
         return {self.header_name: self.header_type + ' ' + token}
 
-    def send_registration_email(
+    async def send_registration_email(
         self, email, user=None, template=None,
         confirmation_sender=None, confirmation_uri=None,
         subject=None, override_access_lifespan=None
@@ -732,13 +736,13 @@ class Praetorian:
             bypass_user_check=True, is_registration_token=True,
         )
 
-        return self.send_token_email(
+        return await self.send_token_email(
             email, user, template, confirmation_sender,
             confirmation_uri, subject, custom_token=custom_token,
             sender=sender
         )
 
-    def send_reset_email(
+    async def send_reset_email(
         self, email, template=None,
         reset_sender=None, reset_uri=None,
         subject=None, override_access_lifespan=None
@@ -784,7 +788,7 @@ class Praetorian:
 
         sender = reset_sender or self.reset_sender
 
-        user = self.user_class.find(email)
+        user = await self.user_class.lookup_by(email)
         MissingUserError.require_condition(
             user is not None,
             'Could not find the requested user',
@@ -801,13 +805,19 @@ class Praetorian:
             bypass_user_check=False, is_reset_token=True,
         )
 
-        return self.send_token_email(
+        return await self.send_token_email(
             user.email, user, template, reset_sender,
             reset_uri, subject, custom_token=custom_token,
             sender=sender
         )
 
-    def send_token_email(
+    async def run_sync(func):
+        loop = asyncio.get_running_loop()
+        return await loop.run_in_executor(
+            None, func,
+        )
+
+    async def send_token_email(
         self, email, user=None, template=None,
         action_sender=None, action_uri=None,
         subject=None, override_access_lifespan=None,
@@ -879,13 +889,13 @@ class Praetorian:
             )
 
             flask.current_app.logger.debug("Sending email to {}".format(email))
-            notification['result'] = flask.current_app.extensions['mail'].send(
+            notification['result'] = await run_sync(partial(flask.current_app.extensions['mail'].send,
                 msg
-            )
+            ))
 
         return notification
 
-    def get_user_from_registration_token(self, token):
+    async def get_user_from_registration_token(self, token):
         """
         Gets a user based on the registration token that is supplied. Verifies
         that the token is a regisration token and that the user can be properly
@@ -898,14 +908,14 @@ class Praetorian:
             user_id is not None,
             "Could not fetch an id from the registration token",
         )
-        user = self.user_class.identify(user_id)
+        user = await self.user_class.identify(user_id)
         PraetorianError.require_condition(
             user is not None,
             "Could not identify the user from the registration token",
         )
         return user
 
-    def validate_reset_token(self, token):
+    async def validate_reset_token(self, token):
         """
         Validates a password reset request based on the reset token
         that is supplied. Verifies that the token is a reset token
@@ -917,7 +927,7 @@ class Praetorian:
             user_id is not None,
             "Could not fetch an id from the reset token",
         )
-        user = self.user_class.identify(user_id)
+        user = await self.user_class.identify(user_id)
         PraetorianError.require_condition(
             user is not None,
             "Could not identify the user from the reset token",

@@ -32,7 +32,7 @@ from flask_praetorian.constants import (
 )
 
 
-class NoFindUser:
+class NoLookupByUser:
     @classmethod
     def identify(cls, id):
         pass
@@ -40,7 +40,7 @@ class NoFindUser:
 
 class NoIdentifyUser:
     @classmethod
-    def find(cls, username):
+    def lookup_by(cls, username):
         pass
 
 
@@ -102,7 +102,7 @@ class TestPraetorian:
         checks the user_class that Praetorian will use for required attributes
         """
         with pytest.raises(PraetorianError) as err_info:
-            Praetorian._validate_user_class(NoFindUser)
+            Praetorian._validate_user_class(NoLookupByUser)
         assert "must have a find class method" in err_info.value.message
 
         with pytest.raises(PraetorianError) as err_info:

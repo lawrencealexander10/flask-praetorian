@@ -25,7 +25,7 @@ class User(db.Model):
             return []
 
     @classmethod
-    def find(cls, username):
+    def lookup_by(cls, username):
         return cls.query.filter_by(username=username).one_or_none()
 
     @classmethod
