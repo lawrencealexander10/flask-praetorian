@@ -268,13 +268,13 @@ class Praetorian:
 
         Requirements:
 
-        - ``find`` method. Accepts a string parameter, returns instance
+        - ``lookup_by`` method. Accepts a string parameter, returns instance
         - ``identify`` method. Accepts an identity parameter, returns instance
         """
         PraetorianError.require_condition(
-            getattr(user_class, 'find', None) is not None,
+            getattr(user_class, 'lookup_by', None) is not None,
             textwrap.dedent("""
-                The user_class must have a find class method:
+                The user_class must have a lookup_by class method:
                 user_class.lookup_by(<str>) -> <user instance>
             """),
         )
