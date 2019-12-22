@@ -12,7 +12,7 @@ from flask_praetorian.utilities import (
 )
 
 
-def _verify_and_add_jwt():
+async def _verify_and_add_jwt():
     """
     This helper method just checks and adds jwt data to the app context. Will
     not add jwt data if it is already present. Only use in this module
@@ -20,7 +20,7 @@ def _verify_and_add_jwt():
     if not app_context_has_jwt_data():
         guard = current_guard()
         token = guard.read_token_from_header()
-        jwt_data = guard.extract_jwt_token(token)
+        jwt_data = await guard.extract_jwt_token(token)
         add_jwt_data_to_app_context(jwt_data)
 
 
@@ -31,8 +31,8 @@ def auth_required(method):
     current flask context.
     """
     @functools.wraps(method)
-    def wrapper(*args, **kwargs):
-        _verify_and_add_jwt()
+    async def wrapper(*args, **kwargs):
+        await _verify_and_add_jwt()
         try:
             return method(*args, **kwargs)
         finally:
@@ -48,9 +48,9 @@ def roles_required(*required_rolenames):
     """
     def decorator(method):
         @functools.wraps(method)
-        def wrapper(*args, **kwargs):
+        async def wrapper(*args, **kwargs):
             role_set = set([str(n) for n in required_rolenames])
-            _verify_and_add_jwt()
+            await _verify_and_add_jwt()
             try:
                 MissingRoleError.require_condition(
                     current_rolenames().issuperset(role_set),
@@ -72,9 +72,9 @@ def roles_accepted(*accepted_rolenames):
     """
     def decorator(method):
         @functools.wraps(method)
-        def wrapper(*args, **kwargs):
+        async def wrapper(*args, **kwargs):
             role_set = set([str(n) for n in accepted_rolenames])
-            _verify_and_add_jwt()
+            await _verify_and_add_jwt()
             try:
                 MissingRoleError.require_condition(
                     not current_rolenames().isdisjoint(role_set),
