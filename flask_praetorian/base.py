@@ -490,7 +490,7 @@ class Praetorian:
                                            exceed the refresh lifespan
         """
         moment = pendulum.now('UTC')
-        data = self.extract_jwt_token(token, access_type=AccessType.refresh)
+        data = await self.extract_jwt_token(token, access_type=AccessType.refresh)
 
         user = await self.user_class.identify(data['id'])
         self._check_user(user)
@@ -524,7 +524,7 @@ class Praetorian:
             payload_parts, self.encode_key, self.encode_algorithm,
         ).decode('utf-8')
 
-    def extract_jwt_token(self, token, access_type=AccessType.access):
+    async def extract_jwt_token(self, token, access_type=AccessType.access):
         """
         Extracts a data dictionary from a jwt token
         """
@@ -536,10 +536,10 @@ class Praetorian:
                 algorithms=self.allowed_algorithms,
                 options={'verify_exp': False},
             )
-        self._validate_jwt_data(data, access_type=access_type)
+        await self._validate_jwt_data(data, access_type=access_type)
         return data
 
-    def _validate_jwt_data(self, data, access_type):
+    async def _validate_jwt_data(self, data, access_type):
         """
         Validates that the data for a jwt token is valid
         """
@@ -548,7 +548,7 @@ class Praetorian:
             'Token is missing jti claim',
         )
         BlacklistedError.require_condition(
-            not self.is_blacklisted(data['jti']),
+            not await self.is_blacklisted(data['jti']),
             'Token has a blacklisted jti',
         )
         MissingClaimError.require_condition(
@@ -905,7 +905,7 @@ class Praetorian:
         that the token is a regisration token and that the user can be properly
         retrieved
         """
-        data = self.extract_jwt_token(token, access_type=AccessType.register)
+        data = await self.extract_jwt_token(token, access_type=AccessType.register)
         flask.current_app.logger.debug("DATA: {}".format(data))
         user_id = data.get('id')
         PraetorianError.require_condition(
@@ -925,7 +925,7 @@ class Praetorian:
         that is supplied. Verifies that the token is a reset token
         and that the user can be properly retrieved
         """
-        data = self.extract_jwt_token(token, access_type=AccessType.reset)
+        data = await self.extract_jwt_token(token, access_type=AccessType.reset)
         user_id = data.get('id')
         PraetorianError.require_condition(
             user_id is not None,
