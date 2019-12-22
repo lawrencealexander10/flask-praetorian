@@ -640,11 +640,11 @@ class Praetorian:
         token = match.group(1)
         return token
 
-    async def read_token_from_header(self):
+    def read_token_from_header(self):
         """
         Unpacks a jwt token from the current flask request
         """
-        headers = await flask.request.headers
+        headers = flask.request.headers
         return self._unpack_header(headers)
 
     def pack_header_for_user(
